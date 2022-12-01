@@ -1,13 +1,12 @@
 package com.tiny.activiti;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class TinyActivitiApplicationTests {
+import org.junit.Test;
+
+public class TinyActivitiApplicationTests {
 
     @Test
-    void contextLoads() {
+    public void contextLoads() {
     }
 
 }
