@@ -2,6 +2,8 @@ package com.tiny.activiti.engine.impl.db;
 
 import com.tiny.activiti.engine.ActivitiException;
 import com.tiny.activiti.engine.impl.cfg.IdGenerator;
+import com.tiny.activiti.engine.impl.interceptor.CommandContext;
+import com.tiny.activiti.engine.impl.interceptor.Session;
 import com.tiny.activiti.engine.impl.interceptor.SessionFactory;
 import com.tiny.activiti.engine.impl.persistence.entity.Entity;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -48,11 +50,10 @@ public class DbSqlSessionFactory implements SessionFactory {
     protected int maxNrOfStatementsInBulkInsert = 100;
 
     public Class<?> getSessionType() {
-//        return DbSqlSession.class;
-        return null;
+        return DbSqlSession.class;
     }
 
-    /*public Session openSession(CommandContext commandContext) {
+    public Session openSession(CommandContext commandContext) {
         DbSqlSession dbSqlSession = new DbSqlSession(this, commandContext.getEntityCache());
         if (getDatabaseSchema() != null && getDatabaseSchema().length() > 0) {
             try {
@@ -69,7 +70,7 @@ public class DbSqlSessionFactory implements SessionFactory {
             }
         }
         return dbSqlSession;
-    }*/
+    }
 
     // insert, update and delete statements
     // /////////////////////////////////////

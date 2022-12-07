@@ -4,12 +4,14 @@ import com.tiny.activiti.engine.ActivitiException;
 import com.tiny.activiti.engine.ProcessEngine;
 import com.tiny.activiti.engine.ProcessEngineConfiguration;
 import com.tiny.activiti.engine.impl.ProcessEngineImpl;
+import com.tiny.activiti.engine.impl.cfg.standalone.StandaloneMybatisTransactionContextFactory;
 import com.tiny.activiti.engine.impl.db.DbIdGenerator;
 import com.tiny.activiti.engine.impl.db.DbSqlSessionFactory;
 import com.tiny.activiti.engine.impl.db.IbatisVariableTypeHandler;
-import com.tiny.activiti.engine.impl.interceptor.CommandConfig;
-import com.tiny.activiti.engine.impl.interceptor.CommandExecutor;
-import com.tiny.activiti.engine.impl.interceptor.SessionFactory;
+import com.tiny.activiti.engine.impl.interceptor.*;
+import com.tiny.activiti.engine.impl.persistence.GenericManagerFactory;
+import com.tiny.activiti.engine.impl.persistence.cache.EntityCache;
+import com.tiny.activiti.engine.impl.persistence.cache.EntityCacheImpl;
 import com.tiny.activiti.engine.impl.util.IoUtil;
 import com.tiny.activiti.engine.impl.util.ReflectUtil;
 import com.tiny.activiti.engine.impl.variable.VariableType;
@@ -34,10 +36,7 @@ import java.io.Reader;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 @Slf4j
 public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfiguration {
@@ -73,7 +72,12 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     protected CommandConfig defaultCommandConfig;
     protected CommandConfig schemaCommandConfig;
 
+    protected CommandInterceptor commandInvoker;
 
+    protected List<CommandInterceptor> commandInterceptors;
+
+    protected CommandContextFactory commandContextFactory;
+    protected TransactionContextFactory transactionContextFactory;
 
     protected boolean isBulkInsertEnabled = true;
 
@@ -105,6 +109,8 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         log.info("ProcessEngine init");
         initDataSource();
 
+        initCommandContextFactory();
+        initTransactionContextFactory();
         initCommandExecutors();
         initIdGenerator();
 
@@ -139,8 +145,34 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         return commandExecutor;
     }
 
+    public Map<Class<?>, SessionFactory> getSessionFactories() {
+        return sessionFactories;
+    }
+
+    public ProcessEngineConfigurationImpl setSessionFactories(Map<Class<?>, SessionFactory> sessionFactories) {
+        this.sessionFactories = sessionFactories;
+        return this;
+    }
+
     public ProcessEngineConfigurationImpl setCommandExecutor(CommandExecutor commandExecutor) {
         this.commandExecutor = commandExecutor;
+        return this;
+    }
+
+    public CommandConfig getSchemaCommandConfig() {
+        return schemaCommandConfig;
+    }
+
+    public void setSchemaCommandConfig(CommandConfig schemaCommandConfig) {
+        this.schemaCommandConfig = schemaCommandConfig;
+    }
+
+    public TransactionContextFactory getTransactionContextFactory() {
+        return transactionContextFactory;
+    }
+
+    public ProcessEngineConfigurationImpl setTransactionContextFactory(TransactionContextFactory transactionContextFactory) {
+        this.transactionContextFactory = transactionContextFactory;
         return this;
     }
 
@@ -148,7 +180,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         if (sessionFactories == null) {
             sessionFactories = new HashMap<Class<?>, SessionFactory>();
             initDbSqlSessionFactory();
-//            addSessionFactory(new GenericManagerFactory(EntityCache.class, EntityCacheImpl.class));
+            addSessionFactory(new GenericManagerFactory(EntityCache.class, EntityCacheImpl.class));
         }
     }
 
@@ -372,9 +404,46 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     public void initCommandExecutors() {
         initDefaultCommandConfig();
         initSchemaCommandConfig();
-//        initCommandInvoker();
-//        initCommandInterceptors();
+        initCommandInvoker();
+        initCommandInterceptors();
         initCommandExecutor();
+    }
+
+    public void initCommandInterceptors() {
+        if (commandInterceptors == null) {
+            commandInterceptors = new ArrayList<CommandInterceptor>();
+            commandInterceptors.addAll(getDefaultCommandInterceptors());
+            commandInterceptors.add(commandInvoker);
+        }
+    }
+
+    public Collection<? extends CommandInterceptor> getDefaultCommandInterceptors() {
+        List<CommandInterceptor> interceptors = new ArrayList<CommandInterceptor>();
+        interceptors.add(new LogInterceptor());
+
+        CommandInterceptor transactionInterceptor = createTransactionInterceptor();
+        if (transactionInterceptor != null) {
+            interceptors.add(transactionInterceptor);
+        }
+
+        if (commandContextFactory != null) {
+            interceptors.add(new CommandContextInterceptor(commandContextFactory, this));
+        }
+
+        if (transactionContextFactory != null) {
+            interceptors.add(new TransactionContextInterceptor(transactionContextFactory));
+        }
+
+        return interceptors;
+    }
+
+
+    public abstract CommandInterceptor createTransactionInterceptor();
+
+    public void initCommandInvoker() {
+        if (commandInvoker == null) {
+            commandInvoker = new CommandInvoker();
+        }
     }
 
     public void initDefaultCommandConfig() {
@@ -392,8 +461,34 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     public void initCommandExecutor() {
         if (commandExecutor == null) {
             log.info("initCommandExecutor");
-            /*CommandInterceptor first = initInterceptorChain(commandInterceptors);
-            commandExecutor = new CommandExecutorImpl(getDefaultCommandConfig(), first);*/
+            CommandInterceptor first = initInterceptorChain(commandInterceptors);
+            commandExecutor = new CommandExecutorImpl(getDefaultCommandConfig(), first);
+        }
+    }
+
+    public CommandInterceptor initInterceptorChain(List<CommandInterceptor> chain) {
+        if (chain == null || chain.isEmpty()) {
+            throw new ActivitiException("invalid command interceptor chain configuration: " + chain);
+        }
+        for (int i = 0; i < chain.size() - 1; i++) {
+            chain.get(i).setNext(chain.get(i + 1));
+        }
+        return chain.get(0);
+    }
+
+    // OTHER
+    // ////////////////////////////////////////////////////////////////////
+
+    public void initCommandContextFactory() {
+        if (commandContextFactory == null) {
+            commandContextFactory = new CommandContextFactory();
+        }
+        commandContextFactory.setProcessEngineConfiguration(this);
+    }
+
+    public void initTransactionContextFactory() {
+        if (transactionContextFactory == null) {
+            transactionContextFactory = new StandaloneMybatisTransactionContextFactory();
         }
     }
 }
