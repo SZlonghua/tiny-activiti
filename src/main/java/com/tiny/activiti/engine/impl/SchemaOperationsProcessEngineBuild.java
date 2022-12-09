@@ -10,10 +10,10 @@ public class SchemaOperationsProcessEngineBuild implements Command<Object> {
     @Override
     public Object execute(CommandContext commandContext) {
         log.debug("SchemaOperationsProcessEngineBuild execute");
-        /*DbSqlSession dbSqlSession = commandContext.getDbSqlSession();
+        DbSqlSession dbSqlSession = commandContext.getDbSqlSession();
         if (dbSqlSession != null) {
             dbSqlSession.performSchemaOperationsProcessEngineBuild();
-        }*/
+        }
         return null;
     }
 }

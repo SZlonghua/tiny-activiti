@@ -39,6 +39,8 @@ public abstract class ProcessEngineConfiguration {
 
     protected String databaseTablePrefix = "";
 
+    protected ActivitiEngineAgendaFactory engineAgendaFactory;
+
     public String getDatabaseSchemaUpdate() {
         return databaseSchemaUpdate;
     }
@@ -121,5 +123,11 @@ public abstract class ProcessEngineConfiguration {
 
     public abstract ProcessEngine buildProcessEngine();
 
+    public void setEngineAgendaFactory(ActivitiEngineAgendaFactory engineAgendaFactory) {
+        this.engineAgendaFactory = engineAgendaFactory;
+    }
 
+    public ActivitiEngineAgendaFactory getEngineAgendaFactory() {
+        return engineAgendaFactory;
+    }
 }

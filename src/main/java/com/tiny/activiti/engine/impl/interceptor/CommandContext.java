@@ -1,16 +1,15 @@
 package com.tiny.activiti.engine.impl.interceptor;
 
+import com.tiny.activiti.engine.ActivitiEngineAgenda;
 import com.tiny.activiti.engine.ActivitiException;
 import com.tiny.activiti.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import com.tiny.activiti.engine.impl.db.DbSqlSession;
 import com.tiny.activiti.engine.impl.persistence.cache.EntityCache;
+import com.tiny.activiti.engine.impl.persistence.entity.ExecutionEntity;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 public class CommandContext {
@@ -23,13 +22,17 @@ public class CommandContext {
     protected List<CommandContextCloseListener> closeListeners;
     protected boolean reused;
 
+    protected ActivitiEngineAgenda agenda;
+    protected Map<String, ExecutionEntity> involvedExecutions = new HashMap<String, ExecutionEntity>(1); // The executions involved with the command
+    protected LinkedList<Object> resultStack = new LinkedList<Object>(); // needs to be a stack, as JavaDelegates can do api calls again
+
 
     public CommandContext(Command<?> command, ProcessEngineConfigurationImpl processEngineConfiguration) {
         this.command = command;
         this.processEngineConfiguration = processEngineConfiguration;
 //        this.failedJobCommandFactory = processEngineConfiguration.getFailedJobCommandFactory();
         this.sessionFactories = processEngineConfiguration.getSessionFactories();
-//        this.agenda = processEngineConfiguration.getEngineAgendaFactory().createAgenda(this);
+        this.agenda = processEngineConfiguration.getEngineAgendaFactory().createAgenda(this);
     }
 
     public ProcessEngineConfigurationImpl getProcessEngineConfiguration() {
@@ -44,7 +47,21 @@ public class CommandContext {
         return getSession(EntityCache.class);
     }
 
+// Involved executions ////////////////////////////////////////////////////////
 
+    public void addInvolvedExecution(ExecutionEntity executionEntity) {
+        if (executionEntity.getId() != null) {
+            involvedExecutions.put(executionEntity.getId(), executionEntity);
+        }
+    }
+
+    public boolean hasInvolvedExecutions() {
+        return involvedExecutions.size() > 0;
+    }
+
+    public Collection<ExecutionEntity> getInvolvedExecutions() {
+        return involvedExecutions.values();
+    }
 
     public <T> T getSession(Class<T> sessionClass) {
         Session session = sessions.get(sessionClass);
@@ -213,6 +230,18 @@ public class CommandContext {
 
     public Throwable getException() {
         return exception;
+    }
+
+    public ActivitiEngineAgenda getAgenda() {
+        return agenda;
+    }
+
+    public Object getResult() {
+        return resultStack.pollLast();
+    }
+
+    public void setResult(Object result) {
+        resultStack.add(result);
     }
 
     public boolean isReused() {

@@ -1,6 +1,7 @@
 package com.tiny.activiti.engine.impl.context;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.tiny.activiti.engine.ActivitiEngineAgenda;
 import com.tiny.activiti.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import com.tiny.activiti.engine.impl.cfg.TransactionContext;
 import com.tiny.activiti.engine.impl.interceptor.CommandContext;
@@ -85,5 +86,9 @@ public class Context {
             threadLocal.set(stack);
         }
         return stack;
+    }
+
+    public static ActivitiEngineAgenda getAgenda() {
+        return getCommandContext().getAgenda();
     }
 }

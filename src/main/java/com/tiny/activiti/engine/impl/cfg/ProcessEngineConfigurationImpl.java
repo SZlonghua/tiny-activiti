@@ -4,6 +4,7 @@ import com.tiny.activiti.engine.ActivitiException;
 import com.tiny.activiti.engine.ProcessEngine;
 import com.tiny.activiti.engine.ProcessEngineConfiguration;
 import com.tiny.activiti.engine.impl.ProcessEngineImpl;
+import com.tiny.activiti.engine.impl.agenda.DefaultActivitiEngineAgendaFactory;
 import com.tiny.activiti.engine.impl.cfg.standalone.StandaloneMybatisTransactionContextFactory;
 import com.tiny.activiti.engine.impl.db.DbIdGenerator;
 import com.tiny.activiti.engine.impl.db.DbSqlSessionFactory;
@@ -108,6 +109,8 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     public void init() {
         log.info("ProcessEngine init");
         initDataSource();
+
+        initAgendaFactory();
 
         initCommandContextFactory();
         initTransactionContextFactory();
@@ -317,6 +320,12 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
         if (databaseType == null) {
             initDatabaseType();
+        }
+    }
+
+    public void initAgendaFactory() {
+        if (this.engineAgendaFactory == null) {
+            this.engineAgendaFactory = new DefaultActivitiEngineAgendaFactory();
         }
     }
 
